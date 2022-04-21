@@ -23,11 +23,10 @@ from ikomia.dnn import datasetio, dnntrain
 import copy
 from datetime import datetime
 from pathlib import Path
-from train_mmlab_text_recognition.utils import prepare_dataset, textrecog_models, UserStop
+from train_mmlab_text_recognition.utils import prepare_dataset, UserStop
 import os.path as osp
 import time
 import distutils
-from multiprocessing import cpu_count
 
 import mmcv
 import torch
@@ -40,7 +39,8 @@ from mmocr.apis import train_detector
 from mmocr.datasets import build_dataset
 from mmocr.models import build_detector
 from mmocr.utils import collect_env, get_root_logger
-
+# importing pipelines enable registry
+import mmocr.datasets.pipelines
 # Your imports below
 
 
@@ -52,26 +52,30 @@ class TrainMmlabTextRecognitionParam(TaskParam):
 
     def __init__(self):
         TaskParam.__init__(self)
-        self.cfg["model_name"] = "SATRN_sm"
-        self.cfg["epochs"] = 5
+        self.cfg["model_name"] = "satrn"
+        self.cfg["cfg"] = "satrn_small.py"
+        self.cfg["weights"] = "https://download.openmmlab.com/mmocr/textrecog/satrn/satrn_small_20211009-2cf13355.pth"
+        self.cfg["custom_cfg"] = ""
+        self.cfg["pretrain"] = True
+        self.cfg["epochs"] = 10
         self.cfg["batch_size"] = 32
         self.cfg["dataset_split_ratio"] = 90
         self.cfg["output_folder"] = os.path.dirname(os.path.realpath(__file__)) + "/runs/"
-        self.cfg["custom_model"] = ""
         self.cfg["eval_period"] = 1
-        self.cfg["pretrain"] = ""
         self.cfg["dataset_folder"] = os.path.dirname(os.path.realpath(__file__))
         self.cfg["expert_mode"] = False
 
     def setParamMap(self, param_map):
         self.cfg["model_name"] = param_map["model_name"]
+        self.cfg["cfg"] = param_map["cfg"]
+        self.cfg["custom_cfg"] = param_map["custom_cfg"]
+        self.cfg["weights"] = param_map["weights"]
+        self.cfg["pretrain"] = distutils.util.strtobool(param_map["pretrain"])
         self.cfg["epochs"] = int(param_map["epochs"])
         self.cfg["batch_size"] = int(param_map["batch_size"])
         self.cfg["dataset_split_ratio"] = int(param_map["dataset_split_ratio"])
         self.cfg["output_folder"] = param_map["output_folder"]
-        self.cfg["custom_model"] = param_map["custom_model"]
         self.cfg["eval_period"] = int(param_map["eval_period"])
-        self.cfg["pretrain"] = param_map["pretrain"]
         self.cfg["dataset_folder"] = param_map["dataset_folder"]
         self.cfg["expert_mode"] = distutils.util.strtobool(param_map["expert_mode"])
 
@@ -84,8 +88,6 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
 
     def __init__(self, name, param):
         dnntrain.TrainProcess.__init__(self, name, param)
-        # Add input/output of the process here
-        self.addInput(datasetio.IkDatasetIO())
 
         # Variable to check if the training must be stopped by user
         self.stop_train = False
@@ -137,15 +139,12 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
 
         # Create config from config file and parameters
         if not (param.cfg["expert_mode"]):
-            config = str(Path(os.path.dirname(os.path.realpath(__file__))) / "configs/textrecog" \
-                         / textrecog_models[param.cfg["model_name"]]['config'])
+            config = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs", "textrecog",
+                                  param.cfg["model_name"], param.cfg["cfg"])
             cfg = Config.fromfile(config)
-            seed = None
             cfg.work_dir = str(self.output_folder)
-            gpus = 1
-            launcher = "none"
-            deterministic = True
             eval_period = param.cfg["eval_period"]
+            cfg.load_from = param.cfg["weights"] if param.cfg["pretrain"] else None
             cfg.log_config = dict(
                 interval=5,
 
@@ -154,54 +153,11 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
                     dict(type='TensorboardLoggerHook', log_dir=tb_logdir)
                 ])
             cfg.total_epochs = param.cfg["epochs"]
-            cfg.evaluation = dict(interval=eval_period, metric='hmean-iou', save_best='auto', rule='greater')
+            cfg.optimizer = dict(type='Adam', lr=0.001)
+            cfg.evaluation = dict(interval=eval_period, metric="acc", save_best="0_word_acc_ignore_case_symbol", rule="greater")
             cfg.dataset_type = 'OCRDataset'
             cfg.data_root = str(Path(param.cfg["dataset_folder"] + "/dataset"))
-            img_norm_cfg = dict(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-            train_pipeline = [
-                dict(type='LoadImageFromFile'),
-                dict(
-                    type='ResizeOCR',
-                    height=32,
-                    min_width=100,
-                    max_width=100,
-                    keep_aspect_ratio=False,
-                    width_downsample_ratio=0.25),
-                dict(type='ToTensorOCR'),
-                dict(type='NormalizeOCR', **img_norm_cfg),
-                dict(
-                    type='Collect',
-                    keys=['img'],
-                    meta_keys=[
-                        'filename', 'ori_shape', 'img_shape', 'text', 'valid_ratio',
-                        'resize_shape'
-                    ]),
-            ]
-            test_pipeline = [
-                dict(type='LoadImageFromFile'),
-                dict(
-                    type='MultiRotateAugOCR',
-                    rotate_degrees=[0, 90, 270],
-                    transforms=[
-                        dict(
-                            type='ResizeOCR',
-                            height=32,
-                            min_width=100,
-                            max_width=100,
-                            keep_aspect_ratio=False,
-                            width_downsample_ratio=0.25),
-                        dict(type='ToTensorOCR'),
-                        dict(type='NormalizeOCR', **img_norm_cfg),
-                        dict(
-                            type='Collect',
-                            keys=['img'],
-                            meta_keys=[
-                                'filename', 'ori_shape', 'img_shape', 'valid_ratio',
-                                'resize_shape'
-                            ]),
-                    ])
-            ]
-            train = dict(
+            cfg.data.train.datasets = [dict(
                 type=cfg.dataset_type,
                 img_prefix=os.path.dirname(cfg.data_root),
                 ann_file=cfg.data_root + '/train_label.txt',
@@ -213,10 +169,9 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
                         keys=['filename', 'text'],
                         keys_idx=[0, 1],
                         separator=' ')),
-                pipeline=train_pipeline,
-                test_mode=False)
-
-            test = dict(
+                pipeline=None,
+                test_mode=False)]
+            cfg.data.val.datasets = [dict(
                 type=cfg.dataset_type,
                 img_prefix=os.path.dirname(cfg.data_root),
                 ann_file=cfg.data_root + '/test_label.txt',
@@ -228,19 +183,12 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
                         keys=['filename', 'text'],
                         keys_idx=[0, 1],
                         separator=' ')),
-                pipeline=test_pipeline,
-                test_mode=True)
-
-            cfg.data = dict(
-                samples_per_gpu=param.cfg["batch_size"],
-                workers_per_gpu=cpu_count(),
-                val_dataloader=dict(samples_per_gpu=cpu_count()),
-                test_dataloader=dict(samples_per_gpu=cpu_count()),
-                train=train,
-                val=test,
-                test=test)
-
-            cfg.evaluation = dict(interval=eval_period, metric='acc')
+                pipeline=None,
+                test_mode=True)]
+            cfg.data.samples_per_gpu = param.cfg["batch_size"]
+            cfg.data.workers_per_gpu = 0
+            cfg.data.val_dataloader = dict(samples_per_gpu=1)
+            cfg.data.test_dataloader = dict(samples_per_gpu=1)
 
             cfg.log_config = dict(
                 interval=5,
@@ -254,9 +202,12 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
             config = param.cfg["custom_model"]
             cfg = Config.fromfile(config)
 
+        gpus = 1
+        launcher = "none"
+        seed = None
+        deterministic = True
         no_validate = cfg.evaluation.interval <= 0
-
-        cfg.load_from = param.cfg["pretrain"] if param.cfg["pretrain"] != "" else None
+        cfg.checkpoint_config = None
 
         # import modules from string list.
         if cfg.get('custom_imports', None):
@@ -311,26 +262,14 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
         meta['seed'] = seed
         meta['exp_name'] = osp.basename(config)
 
+        datasets = [build_dataset(cfg.data.train)]
+
         model = build_detector(
             cfg.model,
             train_cfg=cfg.get('train_cfg'),
             test_cfg=cfg.get('test_cfg'))
         model.init_weights()
 
-        datasets = [build_dataset(cfg.data.train)]
-        if len(cfg.workflow) == 2:
-            val_dataset = copy.deepcopy(cfg.data.val)
-            if cfg.data.train['type'] == 'ConcatDataset':
-                train_pipeline = cfg.data.train['datasets'][0].pipeline
-            else:
-                train_pipeline = cfg.data.train.pipeline
-
-            if val_dataset['type'] == 'ConcatDataset':
-                for dataset in val_dataset['datasets']:
-                    dataset.pipeline = train_pipeline
-            else:
-                val_dataset.pipeline = train_pipeline
-            datasets.append(build_dataset(val_dataset))
         if cfg.checkpoint_config is not None:
             # save mmdet version, config file content and class names in
             # checkpoints as meta data
@@ -340,10 +279,11 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
         # add an attribute for visualization convenience
         model.CLASSES = datasets[0].CLASSES
 
-        # add here custom hook to stop process when user clicks stop button
+        # add custom hook to stop process and save latest model each epoch
         cfg.custom_hooks = [
             dict(type='CustomHook', stop=self.get_stop, output_folder=str(self.output_folder),
-                 emitStepProgress=self.emitStepProgress, priority='LOWEST')
+                 emitStepProgress=self.emitStepProgress, priority='LOWEST'),
+            dict(type='CustomMlflowLoggerHook', log_metrics=self.log_metrics)
         ]
         try:
             train_detector(
@@ -367,6 +307,7 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
     def stop(self):
         super().stop()
         self.stop_train = True
+
 
 # --------------------
 # - Factory class to build process object
