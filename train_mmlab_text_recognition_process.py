@@ -24,7 +24,7 @@ from ikomia.core import config as ikcfg
 import copy
 from datetime import datetime
 from pathlib import Path
-from train_mmlab_text_recognition.utils import prepare_dataset, UserStop
+from train_mmlab_text_recognition.utils import prepare_dataset, UserStop, dict_file_to_list
 import os.path as osp
 import time
 import distutils
@@ -42,7 +42,6 @@ from mmocr.models import build_detector
 from mmocr.utils import collect_env, get_root_logger
 # importing pipelines enable registry
 import mmocr.datasets.pipelines
-# Your imports below
 
 
 # --------------------
@@ -199,6 +198,13 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
                     dict(type='TextLoggerHook'),
                     dict(type='TensorboardLoggerHook', log_dir=tb_logdir)
                 ])
+
+            dict_list = dict_file_to_list(input.data["metadata"]['dict_file'])
+            cfg.label_convertor = dict(type='AttnConvertor',
+                                       dict_type=None,
+                                       dict_list=list(dict_list),
+                                       with_unknown=True)
+            cfg.model.label_convertor = cfg.label_convertor
 
         else:
             config = param.cfg["custom_model"]
