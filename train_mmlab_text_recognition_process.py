@@ -20,6 +20,7 @@ from ikomia import dataprocess
 from ikomia.core.task import TaskParam
 import os
 from ikomia.dnn import datasetio, dnntrain
+from ikomia.core import config as ikcfg
 import copy
 from datetime import datetime
 from pathlib import Path
@@ -132,7 +133,7 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
         self.output_folder.mkdir(parents=True, exist_ok=True)
 
         # Tensorboard
-        tb_logdir = str(Path(self.getTensorboardLogDir()) / str_datetime)
+        tb_logdir = os.path.join(ikcfg.main_cfg["tensorboard"]["log_uri"], str_datetime)
 
         # Transform Ikomia dataset to ICDAR compatible dataset if needed
         prepare_dataset(input.data, param.cfg["dataset_folder"], param.cfg["dataset_split_ratio"] / 100)
