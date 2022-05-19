@@ -155,7 +155,8 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
                 ])
             cfg.total_epochs = param.cfg["epochs"]
             cfg.optimizer = dict(type='Adam', lr=0.001)
-            cfg.evaluation = dict(interval=eval_period, metric="acc", save_best="0_word_acc_ignore_case_symbol", rule="greater")
+            cfg.evaluation = dict(interval=eval_period, metric="acc", save_best="0_word_acc_ignore_case_symbol",
+                                  rule="greater")
             cfg.dataset_type = 'OCRDataset'
             cfg.data_root = str(Path(param.cfg["dataset_folder"] + "/dataset"))
             cfg.data.train.datasets = [dict(
