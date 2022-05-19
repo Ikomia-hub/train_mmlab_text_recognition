@@ -170,7 +170,7 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
                         type='LineStrParser',
                         keys=['filename', 'text'],
                         keys_idx=[0, 1],
-                        separator=' ')),
+                        separator='\t')),
                 pipeline=None,
                 test_mode=False)]
             cfg.data.val.datasets = [dict(
@@ -184,7 +184,7 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
                         type='LineStrParser',
                         keys=['filename', 'text'],
                         keys_idx=[0, 1],
-                        separator=' ')),
+                        separator='\t')),
                 pipeline=None,
                 test_mode=True)]
             cfg.data.samples_per_gpu = param.cfg["batch_size"]
