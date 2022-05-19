@@ -89,54 +89,52 @@ class UserStop(Exception):
     pass
 
 
-# Define custom hook to stop process when user uses stop button and to save last checkpoint
+def register_mmlab_modules():
+    # Define custom hook to stop process when user uses stop button and to save last checkpoint
+    @HOOKS.register_module(force=True)
+    class CustomHook(Hook):
+        # Check at each iter if the training must be stopped
+        def __init__(self, stop, output_folder, emitStepProgress):
+            self.stop = stop
+            self.output_folder = output_folder
+            self.emitStepProgress = emitStepProgress
 
-@HOOKS.register_module(force=True)
-class CustomHook(Hook):
-    # Check at each iter if the training must be stopped
-    def __init__(self, stop, output_folder, emitStepProgress):
-        self.stop = stop
-        self.output_folder = output_folder
-        self.emitStepProgress = emitStepProgress
+        def after_epoch(self, runner):
+            self.emitStepProgress()
 
-    def after_epoch(self, runner):
-        self.emitStepProgress()
+        def after_train_iter(self, runner):
+            # Check if training must be stopped and save last model
+            if self.stop():
+                runner.save_checkpoint(self.output_folder, "latest.pth", create_symlink=False)
+                raise UserStop
 
-    def after_train_iter(self, runner):
-        # Check if training must be stopped and save last model
-        if self.stop():
-            runner.save_checkpoint(self.output_folder, "latest.pth", create_symlink=False)
-            raise UserStop
+    @HOOKS.register_module(force=True)
+    class CustomMlflowLoggerHook(LoggerHook):
+        """Class to log metrics and (optionally) a trained model to MLflow.
+        It requires `MLflow`_ to be installed.
+        Args:
+            interval (int): Logging interval (every k iterations). Default: 10.
+            ignore_last (bool): Ignore the log of last iterations in each epoch
+                if less than `interval`. Default: True.
+            reset_flag (bool): Whether to clear the output buffer after logging.
+                Default: False.
+            by_epoch (bool): Whether EpochBasedRunner is used. Default: True.
+        .. _MLflow:
+            https://www.mlflow.org/docs/latest/index.html
+        """
 
+        def __init__(self,
+                     log_metrics,
+                     interval=10,
+                     ignore_last=True,
+                     reset_flag=False,
+                     by_epoch=False):
+            super(CustomMlflowLoggerHook, self).__init__(interval, ignore_last,
+                                                         reset_flag, by_epoch)
+            self.log_metrics = log_metrics
 
-@HOOKS.register_module(force=True)
-class CustomMlflowLoggerHook(LoggerHook):
-    """Class to log metrics and (optionally) a trained model to MLflow.
-    It requires `MLflow`_ to be installed.
-    Args:
-        interval (int): Logging interval (every k iterations). Default: 10.
-        ignore_last (bool): Ignore the log of last iterations in each epoch
-            if less than `interval`. Default: True.
-        reset_flag (bool): Whether to clear the output buffer after logging.
-            Default: False.
-        by_epoch (bool): Whether EpochBasedRunner is used. Default: True.
-    .. _MLflow:
-        https://www.mlflow.org/docs/latest/index.html
-    """
-
-    def __init__(self,
-                 log_metrics,
-                 interval=10,
-                 ignore_last=True,
-                 reset_flag=False,
-                 by_epoch=False):
-        super(CustomMlflowLoggerHook, self).__init__(interval, ignore_last,
-                                               reset_flag, by_epoch)
-        self.log_metrics = log_metrics
-
-    @master_only
-    def log(self, runner):
-        tags = self.get_loggable_tags(runner)
-        if tags:
-            self.log_metrics(tags, step=self.get_iter(runner))
-
+        @master_only
+        def log(self, runner):
+            tags = self.get_loggable_tags(runner)
+            if tags:
+                self.log_metrics(tags, step=self.get_iter(runner))

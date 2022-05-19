@@ -24,7 +24,7 @@ from ikomia.core import config as ikcfg
 import copy
 from datetime import datetime
 from pathlib import Path
-from train_mmlab_text_recognition.utils import prepare_dataset, UserStop, dict_file_to_list
+from train_mmlab_text_recognition.utils import prepare_dataset, UserStop, dict_file_to_list, register_mmlab_modules
 import os.path as osp
 import time
 import distutils
@@ -88,6 +88,8 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
 
     def __init__(self, name, param):
         dnntrain.TrainProcess.__init__(self, name, param)
+
+        register_mmlab_modules()
 
         # Variable to check if the training must be stopped by user
         self.stop_train = False
