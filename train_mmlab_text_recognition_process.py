@@ -155,7 +155,6 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
                     dict(type='TensorboardLoggerHook', log_dir=tb_logdir)
                 ])
             cfg.total_epochs = param.cfg["epochs"]
-            cfg.optimizer = dict(type='Adam', lr=0.001)
             cfg.evaluation = dict(interval=eval_period, metric="acc", save_best="0_word_acc_ignore_case_symbol",
                                   rule="greater")
             cfg.dataset_type = 'OCRDataset'
