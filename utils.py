@@ -1,7 +1,6 @@
 from mmcv.runner.hooks import HOOKS, Hook
 import numpy as np
 import os
-from pathlib import Path
 import cv2
 import random
 from mmcv.runner.hooks import LoggerHook
@@ -34,8 +33,8 @@ def polygone_to_bbox_xywh(pts):
 
 
 def prepare_dataset(ikdata, save_dir, split_ratio):
-    dataset_dir = str(Path(save_dir + '/dataset'))
-    imgs_dir = str(Path(dataset_dir + '/images'))
+    dataset_dir = os.path.join(save_dir, 'dataset')
+    imgs_dir = os.path.join(dataset_dir, 'images')
     print("Preparing dataset...")
     for dire in [dataset_dir, imgs_dir]:
         if not (os.path.isdir(dire)):
@@ -44,8 +43,8 @@ def prepare_dataset(ikdata, save_dir, split_ratio):
             print("Dataset already prepared!")
             return
 
-    train_label = str(Path(dataset_dir + '/train_label.txt'))
-    test_label = str(Path(dataset_dir + '/test_label.txt'))
+    train_label = os.path.join(dataset_dir, 'train_label.txt')
+    test_label = os.path.join(dataset_dir, 'test_label.txt')
 
     for file in [train_label, test_label]:
         with open(file, "w") as f:
@@ -70,7 +69,7 @@ def prepare_dataset(ikdata, save_dir, split_ratio):
                 txt = annot["text"]
                 if len(txt) > 0:
                     word_img = img[int(y):int(y) + int(h), int(x):int(x) + int(w)]
-                    word_img_name = str(Path(imgs_dir) / ('word_' + str(word_id) + '.png'))
+                    word_img_name = os.path.join(imgs_dir, 'word_' + str(word_id) + '.png')
                     cv2.imwrite(word_img_name, word_img)
                     str_to_write = word_img_name + "\t" + txt + '\n'
                     if img_id in train_idx:
