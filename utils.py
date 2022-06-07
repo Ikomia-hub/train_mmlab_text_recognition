@@ -5,6 +5,7 @@ import cv2
 import random
 from mmcv.runner.hooks import LoggerHook
 from mmcv.runner.dist_utils import master_only
+import shutil
 
 
 def dict_file_to_list(dict_file):
@@ -40,8 +41,16 @@ def prepare_dataset(ikdata, save_dir, split_ratio):
         if not (os.path.isdir(dire)):
             os.mkdir(dire)
         else:
-            print("Dataset already prepared!")
-            return
+            # delete files already in these directories to avoid mistakes
+            for filename in os.listdir(dire):
+                file_path = os.path.join(dire, filename)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                except Exception as e:
+                    print('Failed to delete %s. Reason: %s' % (file_path, e))
 
     train_label = os.path.join(dataset_dir, 'train_label.txt')
     test_label = os.path.join(dataset_dir, 'test_label.txt')
