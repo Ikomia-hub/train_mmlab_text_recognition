@@ -164,7 +164,7 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
             cfg.data_root = str(Path(param.cfg["dataset_folder"] + "/dataset"))
             cfg.data.train.datasets = [dict(
                 type=cfg.dataset_type,
-                img_prefix=os.path.dirname(cfg.data_root),
+                img_prefix="",
                 ann_file=cfg.data_root + '/train_label.txt',
                 loader=dict(
                     type='HardDiskLoader',
@@ -178,7 +178,7 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
                 test_mode=False)]
             cfg.data.val.datasets = [dict(
                 type=cfg.dataset_type,
-                img_prefix=os.path.dirname(cfg.data_root),
+                img_prefix="",
                 ann_file=cfg.data_root + '/test_label.txt',
                 loader=dict(
                     type='HardDiskLoader',
