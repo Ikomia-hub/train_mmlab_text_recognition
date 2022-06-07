@@ -6,7 +6,19 @@ import random
 from mmcv.runner.hooks import LoggerHook
 from mmcv.runner.dist_utils import master_only
 import shutil
+from mmcv import Config, ConfigDict
 
+
+def search_and_modify_cfg(cfg, key, value):
+    if isinstance(cfg, list):
+        for e in cfg:
+            search_and_modify_cfg(e, key, value)
+    elif isinstance(cfg, (Config, ConfigDict)):
+        for k, v in cfg.items():
+            if k == key:
+                cfg[k] = value
+            else:
+                search_and_modify_cfg(v, key, value)
 
 def dict_file_to_list(dict_file):
     with open(dict_file, 'r') as f:
