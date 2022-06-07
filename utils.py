@@ -20,6 +20,7 @@ def search_and_modify_cfg(cfg, key, value):
             else:
                 search_and_modify_cfg(v, key, value)
 
+
 def dict_file_to_list(dict_file):
     with open(dict_file, 'r') as f:
         lines = f.readlines()
