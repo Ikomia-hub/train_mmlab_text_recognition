@@ -24,7 +24,8 @@ from ikomia.core import config as ikcfg
 import copy
 from datetime import datetime
 from pathlib import Path
-from train_mmlab_text_recognition.utils import prepare_dataset, UserStop, dict_file_to_list, register_mmlab_modules
+from train_mmlab_text_recognition.utils import prepare_dataset, UserStop, dict_file_to_list, register_mmlab_modules, \
+    search_and_modify_cfg
 import os.path as osp
 import time
 import distutils
@@ -93,6 +94,8 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
 
         # Variable to check if the training must be stopped by user
         self.stop_train = False
+
+        self.max_seq_len = 100
 
         self.output_folder = ""
 
@@ -199,13 +202,27 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
                     dict(type='TextLoggerHook'),
                     dict(type='TensorboardLoggerHook', log_dir=tb_logdir)
                 ])
-
-            dict_list = dict_file_to_list(input.data["metadata"]['dict_file'])
-            cfg.label_convertor = dict(type='AttnConvertor',
+            if "dict_file" in input.data["metadata"]:
+                dict_list = dict_file_to_list(input.data["metadata"]['dict_file'])
+            else:
+                dict_list = list(tuple('0123456789abcdefghijklmnopqrstuvwxyz'
+                                       'ABCDEFGHIJKLMNOPQRSTUVWXYZ!"#$%&\'()'
+                                       '*+,-./:;<=>?@[\\]_`~ '))
+            # +2 for special tokens : <EOS> and <UNKNOWN>
+            cfg.num_chars = len(dict_list) + 2
+            cfg.label_convertor = dict(type=cfg.label_convertor.type,
                                        dict_type=None,
                                        dict_list=list(dict_list),
                                        with_unknown=True)
             cfg.model.label_convertor = cfg.label_convertor
+            search_and_modify_cfg(cfg, "max_seq_len", self.max_seq_len)
+            search_and_modify_cfg(cfg, "num_chars", cfg.num_chars)
+            search_and_modify_cfg(cfg, "num_classes", cfg.num_chars)
+            if "model" in cfg:
+                if cfg.model is not None:
+                    if "decoder" in cfg.model:
+                        if cfg.model.decoder is not None:
+                            search_and_modify_cfg(cfg.model.decoder, "pad_idx", cfg.num_chars - 1)
 
         else:
             config = param.cfg["custom_model"]
