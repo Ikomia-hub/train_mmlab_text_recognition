@@ -46,7 +46,7 @@ def polygone_to_bbox_xywh(pts):
     return [x, y, w, h]
 
 
-def prepare_dataset(ikdata, save_dir, split_ratio):
+def prepare_dataset(ikdata, save_dir, split_ratio, seed):
     dataset_dir = os.path.join(save_dir, 'dataset')
     imgs_dir = os.path.join(dataset_dir, 'images')
     print("Preparing dataset...")
@@ -73,6 +73,8 @@ def prepare_dataset(ikdata, save_dir, split_ratio):
             f.write('')
     images = ikdata['images']
     n = len(images)
+    if seed:
+        random.seed(0)
     train_idx = random.sample(range(n), int(n * split_ratio))
     word_id = 1
     for img_id, sample in enumerate(images):

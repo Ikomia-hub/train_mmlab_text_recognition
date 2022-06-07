@@ -28,7 +28,7 @@ from train_mmlab_text_recognition.utils import prepare_dataset, UserStop, dict_f
     search_and_modify_cfg
 import os.path as osp
 import time
-import distutils
+from distutils.util import strtobool
 
 import mmcv
 import torch
@@ -65,20 +65,22 @@ class TrainMmlabTextRecognitionParam(TaskParam):
         self.cfg["eval_period"] = 1
         self.cfg["dataset_folder"] = os.path.dirname(os.path.realpath(__file__))
         self.cfg["expert_mode"] = False
+        self.cfg["seed"] = True
 
     def setParamMap(self, param_map):
         self.cfg["model_name"] = param_map["model_name"]
         self.cfg["cfg"] = param_map["cfg"]
         self.cfg["custom_cfg"] = param_map["custom_cfg"]
         self.cfg["weights"] = param_map["weights"]
-        self.cfg["pretrain"] = distutils.util.strtobool(param_map["pretrain"])
+        self.cfg["pretrain"] = strtobool(param_map["pretrain"])
         self.cfg["epochs"] = int(param_map["epochs"])
         self.cfg["batch_size"] = int(param_map["batch_size"])
         self.cfg["dataset_split_ratio"] = int(param_map["dataset_split_ratio"])
         self.cfg["output_folder"] = param_map["output_folder"]
         self.cfg["eval_period"] = int(param_map["eval_period"])
         self.cfg["dataset_folder"] = param_map["dataset_folder"]
-        self.cfg["expert_mode"] = distutils.util.strtobool(param_map["expert_mode"])
+        self.cfg["expert_mode"] = strtobool(param_map["expert_mode"])
+        self.cfg["seed"] = strtobool(param_map["seed"])
 
 
 # --------------------
@@ -140,7 +142,8 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
         tb_logdir = os.path.join(ikcfg.main_cfg["tensorboard"]["log_uri"], str_datetime)
 
         # Transform Ikomia dataset to ICDAR compatible dataset if needed
-        prepare_dataset(input.data, param.cfg["dataset_folder"], param.cfg["dataset_split_ratio"] / 100)
+        prepare_dataset(input.data, param.cfg["dataset_folder"], param.cfg["dataset_split_ratio"] / 100,
+                        param.cfg["seed"])
 
         # Create config from config file and parameters
         if not (param.cfg["expert_mode"]):

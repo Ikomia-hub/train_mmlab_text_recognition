@@ -93,9 +93,13 @@ class TrainMmlabTextRecognitionWidget(core.CWorkflowTaskWidget):
         self.browse_cfg_file = pyqtutils.BrowseFileWidget(path=self.parameters.cfg["custom_cfg"],
                                                           tooltip="Select file",
                                                           mode=QFileDialog.ExistingFile)
+
         row = self.grid_layout.rowCount()
         self.grid_layout.addWidget(self.label_model, row, 0)
         self.grid_layout.addWidget(self.browse_cfg_file, row, 1)
+
+        # Seed for train/test split
+        self.check_seed = pyqtutils.append_check(self.grid_layout, "Dataset seed", self.parameters.cfg["seed"])
 
         self.label_model.setVisible(self.check_expert.isChecked())
         self.browse_cfg_file.setVisible(self.check_expert.isChecked())
@@ -161,6 +165,7 @@ class TrainMmlabTextRecognitionWidget(core.CWorkflowTaskWidget):
         self.parameters.cfg["output_folder"] = self.browse_out_folder.path
         self.parameters.cfg["pretrain"] = self.check_pretrain.isChecked()
         self.parameters.cfg["cfg"] = self.combo_config.currentText()+".py"
+        self.parameters.cfg["seed"] = self.check_seed.isChecked()
 
         # Send signal to launch the process
         self.emitApply(self.parameters)
