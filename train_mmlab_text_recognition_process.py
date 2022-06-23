@@ -97,7 +97,7 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
         # Variable to check if the training must be stopped by user
         self.stop_train = False
 
-        self.max_seq_len = 100
+        self.max_seq_len = 26
 
         self.output_folder = ""
 
@@ -355,7 +355,7 @@ class TrainMmlabTextRecognitionFactory(dataprocess.CTaskFactory):
                                 "by ticking Expert mode button."
         # relative path -> as displayed in Ikomia application process tree
         self.info.path = "Plugins/Python"
-        self.info.version = "1.0.0"
+        self.info.version = "1.0.1"
         self.info.iconPath = "icons/mmlab.png"
         self.info.authors = "Kuang, Zhanghui and Sun, Hongbin and Li, Zhizhong and Yue, Xiaoyu and Lin," \
                             " Tsui Hin and Chen, Jianyong and Wei, Huaqiang and Zhu, Yiqin and Gao, Tong and Zhang," \
