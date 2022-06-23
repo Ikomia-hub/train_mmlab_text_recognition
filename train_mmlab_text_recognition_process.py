@@ -354,7 +354,7 @@ class TrainMmlabTextRecognitionFactory(dataprocess.CTaskFactory):
                                 "model zoo or use custom models and custom pretrained weights " \
                                 "by ticking Expert mode button."
         # relative path -> as displayed in Ikomia application process tree
-        self.info.path = "Plugins/Python"
+        self.info.path = "Plugins/Python/Text"
         self.info.version = "1.0.1"
         self.info.iconPath = "icons/mmlab.png"
         self.info.authors = "Kuang, Zhanghui and Sun, Hongbin and Li, Zhizhong and Yue, Xiaoyu and Lin," \
