@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from ikomia import dataprocess
+from ikomia import utils, dataprocess
 from ikomia.core.task import TaskParam
 import os
 from ikomia.dnn import datasetio, dnntrain
@@ -28,14 +28,11 @@ from train_mmlab_text_recognition.utils import prepare_dataset, UserStop, dict_f
     search_and_modify_cfg
 import os.path as osp
 import time
-from distutils.util import strtobool
-
 import mmcv
 import torch
 from mmcv import Config
 from mmcv.runner import get_dist_info, init_dist, set_random_seed
 from mmcv.utils import get_git_hash
-
 from mmocr import __version__
 from mmocr.apis import train_detector
 from mmocr.datasets import build_dataset
@@ -72,15 +69,15 @@ class TrainMmlabTextRecognitionParam(TaskParam):
         self.cfg["cfg"] = param_map["cfg"]
         self.cfg["custom_cfg"] = param_map["custom_cfg"]
         self.cfg["weights"] = param_map["weights"]
-        self.cfg["pretrain"] = strtobool(param_map["pretrain"])
+        self.cfg["pretrain"] = utils.strtobool(param_map["pretrain"])
         self.cfg["epochs"] = int(param_map["epochs"])
         self.cfg["batch_size"] = int(param_map["batch_size"])
         self.cfg["dataset_split_ratio"] = int(param_map["dataset_split_ratio"])
         self.cfg["output_folder"] = param_map["output_folder"]
         self.cfg["eval_period"] = int(param_map["eval_period"])
         self.cfg["dataset_folder"] = param_map["dataset_folder"]
-        self.cfg["expert_mode"] = strtobool(param_map["expert_mode"])
-        self.cfg["seed"] = strtobool(param_map["seed"])
+        self.cfg["expert_mode"] = utils.strtobool(param_map["expert_mode"])
+        self.cfg["seed"] = utils.strtobool(param_map["seed"])
 
 
 # --------------------
