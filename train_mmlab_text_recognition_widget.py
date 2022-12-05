@@ -109,7 +109,7 @@ class TrainMmlabTextRecognitionWidget(core.CWorkflowTaskWidget):
         self.spin_eval_period.setEnabled(not self.check_expert.isChecked())
         self.combo_model.setEnabled(not self.check_expert.isChecked())
         self.combo_config.setVisible(not self.check_expert.isChecked())
-
+        self.on_combo_model_changed(0)
 
         # PyQt -> Qt wrapping
         layout_ptr = qtconversion.PyQtToQt(self.grid_layout)
