@@ -1,12 +1,19 @@
-from mmcv.runner.hooks import HOOKS, Hook
 import numpy as np
 import os
 import cv2
 import random
-from mmcv.runner.hooks import LoggerHook
-from mmcv.runner.dist_utils import master_only
 import shutil
-from mmcv import Config, ConfigDict
+import copy
+import json
+
+from mmengine.registry import HOOKS
+from mmengine import Config, ConfigDict
+from mmengine.hooks import Hook
+from mmengine.hooks import LoggerHook
+from mmengine.dist import master_only
+from typing import Optional, Sequence, Union
+
+DATA_BATCH = Optional[Union[dict, tuple, list]]
 
 
 def search_and_modify_cfg(cfg, key, value):
@@ -65,8 +72,8 @@ def prepare_dataset(ikdata, save_dir, split_ratio, seed):
                 except Exception as e:
                     print('Failed to delete %s. Reason: %s' % (file_path, e))
 
-    train_label = os.path.join(dataset_dir, 'train_label.txt')
-    test_label = os.path.join(dataset_dir, 'test_label.txt')
+    train_label = os.path.join(dataset_dir, 'instances_train.json')
+    test_label = os.path.join(dataset_dir, 'instances_test.json')
 
     for file in [train_label, test_label]:
         with open(file, "w") as f:
@@ -76,6 +83,18 @@ def prepare_dataset(ikdata, save_dir, split_ratio, seed):
     if seed:
         random.seed(0)
     train_idx = random.sample(range(n), int(n * split_ratio))
+
+    json_train = \
+        {
+            "metainfo":
+                {
+                    "dataset_type": "TextRecogDataset",
+                    "task_name": "textrecog",
+                },
+            'data_list': []
+        }
+    json_test = copy.deepcopy(json_train)
+
     word_id = 1
     for img_id, sample in enumerate(images):
         img = cv2.imread(sample['filename'])
@@ -95,16 +114,16 @@ def prepare_dataset(ikdata, save_dir, split_ratio, seed):
                     word_img = img[int(y):int(y) + int(h), int(x):int(x) + int(w)]
                     word_img_name = os.path.join(imgs_dir, 'word_' + str(word_id) + '.png')
                     cv2.imwrite(word_img_name, word_img)
-                    str_to_write = word_img_name + "\t" + txt + '\n'
+                    dict_to_write = {"img_path": word_img_name, "instances": [{"text": txt}]}
                     if img_id in train_idx:
-                        file_to_write = train_label
+                        json_train["data_list"].append(dict_to_write)
                     else:
-                        file_to_write = test_label
-                    with open(file_to_write, 'a') as f:
-                        f.write(str_to_write)
+                        json_test["data_list"].append(dict_to_write)
 
                     word_id += 1
-
+    for json_file, json_dict in [(train_label, json_train), (test_label, json_test)]:
+        with open(json_file, 'w') as f:
+            f.write(json.dumps(json_dict))
     print("Dataset prepared!")
 
 
@@ -125,7 +144,12 @@ def register_mmlab_modules():
         def after_epoch(self, runner):
             self.emitStepProgress()
 
-        def after_train_iter(self, runner):
+        def _after_iter(self,
+                        runner,
+                        batch_idx: int,
+                        data_batch: DATA_BATCH = None,
+                        outputs: Optional[Union[Sequence, dict]] = None,
+                        mode: str = 'train') -> None:
             # Check if training must be stopped and save last model
             if self.stop():
                 runner.save_checkpoint(self.output_folder, "latest.pth", create_symlink=False)
@@ -150,10 +174,9 @@ def register_mmlab_modules():
                      log_metrics,
                      interval=10,
                      ignore_last=True,
-                     reset_flag=False,
                      by_epoch=False):
-            super(CustomMlflowLoggerHook, self).__init__(interval, ignore_last,
-                                                         reset_flag, by_epoch)
+            super(CustomMlflowLoggerHook, self).__init__(interval=interval, ignore_last=ignore_last,
+                                                         log_metric_by_epoch=by_epoch)
             self.log_metrics = log_metrics
 
         @master_only

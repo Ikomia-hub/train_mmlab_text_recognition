@@ -19,27 +19,70 @@
 from ikomia import utils, dataprocess
 from ikomia.core.task import TaskParam
 import os
-from ikomia.dnn import datasetio, dnntrain
+from ikomia.dnn import dnntrain
 from ikomia.core import config as ikcfg
 import copy
 from datetime import datetime
 from pathlib import Path
+import logging
 from train_mmlab_text_recognition.utils import prepare_dataset, UserStop, dict_file_to_list, register_mmlab_modules, \
     search_and_modify_cfg
-import os.path as osp
-import time
-import mmcv
-import torch
-from mmcv import Config
-from mmcv.runner import get_dist_info, init_dist, set_random_seed
-from mmcv.utils import get_git_hash
-from mmocr import __version__
-from mmocr.apis import train_detector
-from mmocr.datasets import build_dataset
-from mmocr.models import build_detector
-from mmocr.utils import collect_env, get_root_logger
-# importing pipelines enable registry
-import mmocr.datasets.pipelines
+from mmengine.config import Config, ConfigDict
+from mmengine.logging import print_log
+from mmengine.runner import Runner
+from mmengine.visualization import Visualizer
+from mmocr.utils import register_all_modules
+
+from typing import Union, Dict
+
+ConfigType = Union[Dict, Config, ConfigDict]
+
+
+class MyRunner(Runner):
+
+    @classmethod
+    def from_custom_cfg(cls, cfg, custom_hooks, visualizer) -> 'Runner':
+        """Build a runner from config.
+
+        Args:
+            cfg (ConfigType): A config used for building runner. Keys of
+                ``cfg`` can see :meth:`__init__`.
+
+        Returns:
+            Runner: A runner build from ``cfg``.
+        """
+        cfg = copy.deepcopy(cfg)
+        runner = cls(
+            model=cfg['model'],
+            work_dir=cfg['work_dir'],
+            train_dataloader=cfg.get('train_dataloader'),
+            val_dataloader=cfg.get('val_dataloader'),
+            test_dataloader=cfg.get('test_dataloader'),
+            train_cfg=cfg.get('train_cfg'),
+            val_cfg=cfg.get('val_cfg'),
+            test_cfg=cfg.get('test_cfg'),
+            auto_scale_lr=cfg.get('auto_scale_lr'),
+            optim_wrapper=cfg.get('optim_wrapper'),
+            param_scheduler=cfg.get('param_scheduler'),
+            val_evaluator=cfg.get('val_evaluator'),
+            test_evaluator=cfg.get('test_evaluator'),
+            default_hooks=cfg.get('default_hooks'),
+            custom_hooks=custom_hooks,
+            data_preprocessor=cfg.get('data_preprocessor'),
+            load_from=cfg.get('load_from'),
+            resume=cfg.get('resume', False),
+            launcher=cfg.get('launcher', 'none'),
+            env_cfg=cfg.get('env_cfg'),  # type: ignore
+            log_processor=cfg.get('log_processor'),
+            log_level=cfg.get('log_level', 'INFO'),
+            visualizer=visualizer,
+            default_scope=cfg.get('default_scope', 'mmengine'),
+            randomness=cfg.get('randomness', dict(seed=None)),
+            experiment_name=cfg.get('experiment_name'),
+            cfg=cfg,
+        )
+
+        return runner
 
 
 # --------------------
@@ -51,8 +94,9 @@ class TrainMmlabTextRecognitionParam(TaskParam):
     def __init__(self):
         TaskParam.__init__(self)
         self.cfg["model_name"] = "satrn"
-        self.cfg["cfg"] = "satrn_small.py"
-        self.cfg["weights"] = "https://download.openmmlab.com/mmocr/textrecog/satrn/satrn_small_20211009-2cf13355.pth"
+        self.cfg["cfg"] = "satrn_shallow-small_5e_st_mj.py"
+        self.cfg[
+            "weights"] = "https://download.openmmlab.com/mmocr/textrecog/satrn/satrn_shallow-small_5e_st_mj/satrn_shallow-small_5e_st_mj_20220915_152442-5591bf27.pth"
         self.cfg["custom_cfg"] = ""
         self.cfg["pretrain"] = True
         self.cfg["epochs"] = 10
@@ -143,185 +187,117 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
                         param.cfg["seed"])
 
         # Create config from config file and parameters
-        if not (param.cfg["expert_mode"]):
+        if not param.cfg["expert_mode"]:
             config = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs", "textrecog",
                                   param.cfg["model_name"], param.cfg["cfg"])
             cfg = Config.fromfile(config)
+
+            if "dict_file" in input.data["metadata"]:
+                cfg.dictionary.dict_list = input.data["metadata"]['dict_file']
+
             cfg.work_dir = str(self.output_folder)
             eval_period = param.cfg["eval_period"]
-            cfg.load_from = param.cfg["weights"] if param.cfg["pretrain"] else None
-            cfg.log_config = dict(
-                interval=5,
-
-                hooks=[
-                    dict(type='TextLoggerHook'),
-                    dict(type='TensorboardLoggerHook', log_dir=tb_logdir)
-                ])
-            cfg.total_epochs = param.cfg["epochs"]
-            cfg.evaluation = dict(interval=eval_period, metric="acc", save_best="0_word_acc_ignore_case_symbol",
+            cfg.evaluation = dict(interval=eval_period, metric=["recog/word_acc"],
                                   rule="greater")
-            cfg.dataset_type = 'OCRDataset'
+
             cfg.data_root = str(Path(param.cfg["dataset_folder"] + "/dataset"))
-            cfg.data.train.datasets = [dict(
-                type=cfg.dataset_type,
-                img_prefix="",
-                ann_file=cfg.data_root + '/train_label.txt',
-                loader=dict(
-                    type='HardDiskLoader',
-                    repeat=1,
-                    parser=dict(
-                        type='LineStrParser',
-                        keys=['filename', 'text'],
-                        keys_idx=[0, 1],
-                        separator='\t')),
-                pipeline=None,
-                test_mode=False)]
-            cfg.data.val.datasets = [dict(
-                type=cfg.dataset_type,
-                img_prefix="",
-                ann_file=cfg.data_root + '/test_label.txt',
-                loader=dict(
-                    type='HardDiskLoader',
-                    repeat=1,
-                    parser=dict(
-                        type='LineStrParser',
-                        keys=['filename', 'text'],
-                        keys_idx=[0, 1],
-                        separator='\t')),
-                pipeline=None,
-                test_mode=True)]
-            cfg.data.samples_per_gpu = param.cfg["batch_size"]
-            cfg.data.workers_per_gpu = 0
-            cfg.data.val_dataloader = dict(samples_per_gpu=1)
-            cfg.data.test_dataloader = dict(samples_per_gpu=1)
+            data_type = 'OCRDataset'
+            train = dict(
+                type=data_type,
+                ann_file=str(Path(cfg.data_root) / 'instances_train.json'),
+                data_prefix=dict(img_path=''),
+                pipeline=cfg.train_pipeline)
+            test = dict(
+                type=data_type,
+                ann_file=str(Path(cfg.data_root) / 'instances_test.json'),
+                data_prefix=dict(img_path=''),
+                pipeline=cfg.test_pipeline)
+            cfg.train_dataloader.dataset = train
+            cfg.test_dataloader.dataset = test
+            cfg.val_dataloader.dataset = test
 
-            cfg.log_config = dict(
-                interval=5,
+            cfg.train_dataloader.batch_size = param.cfg["batch_size"]
+            cfg.train_dataloader.num_workers = 0
+            cfg.train_dataloader.persistent_workers = False
 
-                hooks=[
-                    dict(type='TextLoggerHook'),
-                    dict(type='TensorboardLoggerHook', log_dir=tb_logdir)
-                ])
-            if "dict_file" in input.data["metadata"]:
-                dict_list = dict_file_to_list(input.data["metadata"]['dict_file'])
-            else:
-                dict_list = list(tuple('0123456789abcdefghijklmnopqrstuvwxyz'
-                                       'ABCDEFGHIJKLMNOPQRSTUVWXYZ!"#$%&\'()'
-                                       '*+,-./:;<=>?@[\\]_`~ '))
-            # +2 for special tokens : <EOS> and <UNKNOWN>
-            cfg.num_chars = len(dict_list) + 2
-            cfg.label_convertor = dict(type=cfg.label_convertor.type,
-                                       dict_type=None,
-                                       dict_list=list(dict_list),
-                                       with_unknown=True)
-            cfg.model.label_convertor = cfg.label_convertor
-            search_and_modify_cfg(cfg, "max_seq_len", self.max_seq_len)
-            search_and_modify_cfg(cfg, "num_chars", cfg.num_chars)
-            search_and_modify_cfg(cfg, "num_classes", cfg.num_chars)
-            if "model" in cfg:
-                if cfg.model is not None:
-                    if "decoder" in cfg.model:
-                        if cfg.model.decoder is not None:
-                            search_and_modify_cfg(cfg.model.decoder, "pad_idx", cfg.num_chars - 1)
+            cfg.test_dataloader.batch_size = param.cfg["batch_size"]
+            cfg.test_dataloader.num_workers = 0
+            cfg.test_dataloader.persistent_workers = False
+
+            cfg.val_dataloader.batch_size = param.cfg["batch_size"]
+            cfg.val_dataloader.num_workers = 0
+            cfg.val_dataloader.persistent_workers = False
+
+            cfg.load_from = param.cfg["weights"] if param.cfg["pretrain"] else None
+
+            cfg.train_cfg.max_epochs = param.cfg["epochs"]
+            cfg.train_cfg.val_interval = eval_period
 
         else:
-            config = param.cfg["custom_model"]
+            config = param.cfg["custom_cfg"]
             cfg = Config.fromfile(config)
 
-        gpus = 1
-        launcher = "none"
-        seed = None
-        deterministic = True
-        no_validate = cfg.evaluation.interval <= 0
+
+
+        amp = True
+        # save only best and last checkpoint
         cfg.checkpoint_config = None
+        if "checkpoint" in cfg.default_hooks:
+            cfg.default_hooks.checkpoint["interval"] = -1
+            cfg.default_hooks.checkpoint["save_best"] = 'recog/word_acc'
+            cfg.default_hooks.checkpoint["rule"] = 'greater'
 
-        # import modules from string list.
-        if cfg.get('custom_imports', None):
-            from mmcv.utils import import_modules_from_strings
-            import_modules_from_strings(**cfg['custom_imports'])
-        # set cudnn_benchmark
-        if cfg.get('cudnn_benchmark', False):
-            torch.backends.cudnn.benchmark = True
+        cfg.visualizer.vis_backends = [dict(type='TensorboardVisBackend', save_dir=tb_logdir)]
 
-        cfg.gpu_ids = range(1) if gpus is None else range(gpus)
-        # init distributed env first, since logger depends on the dist info.
-        if launcher == 'none':
-            distributed = False
-        else:
-            distributed = True
-            init_dist(launcher, **cfg.dist_params)
-            # re-set gpu_ids with distributed training mode
-            _, world_size = get_dist_info()
-            cfg.gpu_ids = range(world_size)
+        try:
+            visualizer = Visualizer.get_current_instance()
+        except:
+            visualizer = cfg.get('visualizer')
 
-        # create work_dir
-        mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
-        # dump config
-        cfg.dump(osp.join(cfg.work_dir, osp.basename(config)))
+        # Single Dataset Multiple Metric
+        cfg.val_evaluator = dict(
+            type='Evaluator',
+            metrics=[
+                dict(
+                    type='WordMetric',
+                    mode=['exact', 'ignore_case', 'ignore_case_symbol']),
+                dict(type='CharMetric')
+            ])
+        cfg.test_evaluator = cfg.val_evaluator
 
-        # init the logger before other steps
-        timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
-        log_file = osp.join(cfg.work_dir, f'{timestamp}.log')
-        logger = get_root_logger(log_file=log_file, log_level=cfg.log_level)
+        # register all modules in mmdet into the registries
+        # do not init the default scope here because it will be init in the runner
+        register_all_modules(init_default_scope=False)
 
-        # init the meta dict to record some important information such as
-        # environment info and seed, which will be logged
-        meta = dict()
-        # log env info
-        env_info_dict = collect_env()
-        env_info = '\n'.join([(f'{k}: {v}') for k, v in env_info_dict.items()])
-        dash_line = '-' * 60 + '\n'
-        logger.info('Environment info:\n' + dash_line + env_info + '\n' +
-                    dash_line)
-        meta['env_info'] = env_info
-        meta['config'] = cfg.pretty_text
-        # log some basic info
-        logger.info(f'Distributed training: {distributed}')
-        logger.info(f'Config:\n{cfg.pretty_text}')
+        # enable automatic-mixed-precision training
+        if amp:
+            optim_wrapper = cfg.optim_wrapper.type
+            if optim_wrapper == 'AmpOptimWrapper':
+                print_log(
+                    'AMP training is already enabled in your config.',
+                    logger='current',
+                    level=logging.WARNING)
+            else:
+                assert optim_wrapper == 'OptimWrapper', (
+                    '`--amp` is only supported when the optimizer wrapper type is '
+                    f'`OptimWrapper` but got {optim_wrapper}.')
+                cfg.optim_wrapper.type = 'AmpOptimWrapper'
+                cfg.optim_wrapper.loss_scale = 'dynamic'
 
-        # set random seeds
-        if seed is not None:
-            logger.info(f'Set random seed to {seed}, '
-                        f'deterministic: {deterministic}')
-            set_random_seed(seed, deterministic=deterministic)
-        cfg.seed = seed
-        meta['seed'] = seed
-        meta['exp_name'] = osp.basename(config)
-
-        datasets = [build_dataset(cfg.data.train)]
-
-        model = build_detector(
-            cfg.model,
-            train_cfg=cfg.get('train_cfg'),
-            test_cfg=cfg.get('test_cfg'))
-        model.init_weights()
-
-        if cfg.checkpoint_config is not None:
-            # save mmdet version, config file content and class names in
-            # checkpoints as meta data
-            cfg.checkpoint_config.meta = dict(
-                mmocr_version=__version__ + get_git_hash()[:7],
-                CLASSES=datasets[0].CLASSES)
-        # add an attribute for visualization convenience
-        model.CLASSES = datasets[0].CLASSES
-
-        # add custom hook to stop process and save latest model each epoch
-        cfg.custom_hooks = [
+        custom_hooks = [
             dict(type='CustomHook', stop=self.get_stop, output_folder=str(self.output_folder),
                  emitStepProgress=self.emitStepProgress, priority='LOWEST'),
             dict(type='CustomMlflowLoggerHook', log_metrics=self.log_metrics)
         ]
-        try:
-            train_detector(
-                model,
-                datasets,
-                cfg,
-                distributed=distributed,
-                validate=(not no_validate),
-                timestamp=timestamp,
-                meta=meta)
-        except UserStop:
-            print("Training stopped by user")
+
+        # build the runner from config
+        runner = MyRunner.from_custom_cfg(cfg, custom_hooks, visualizer)
+
+        # add custom hook to stop process and save the latest model each epoch
+
+        runner.cfg = cfg
+        # start training
+        runner.train()
 
         print("Training finished!")
         # Call endTaskRun to finalize process
