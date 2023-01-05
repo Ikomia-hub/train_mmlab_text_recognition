@@ -138,8 +138,6 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
         # Variable to check if the training must be stopped by user
         self.stop_train = False
 
-        self.max_seq_len = 26
-
         self.output_folder = ""
 
         # Create parameters class
@@ -236,8 +234,6 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
         else:
             config = param.cfg["custom_cfg"]
             cfg = Config.fromfile(config)
-
-
 
         amp = True
         # save only best and last checkpoint
