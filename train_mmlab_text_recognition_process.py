@@ -283,7 +283,7 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
         custom_hooks = [
             dict(type='CustomHook', stop=self.get_stop, output_folder=str(self.output_folder),
                  emitStepProgress=self.emitStepProgress, priority='LOWEST'),
-            dict(type='CustomMlflowLoggerHook', log_metrics=self.log_metrics)
+            dict(type='CustomLoggerHook', log_metrics=self.log_metrics)
         ]
 
         # build the runner from config
