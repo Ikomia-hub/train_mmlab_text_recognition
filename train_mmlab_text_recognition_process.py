@@ -191,7 +191,7 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
             cfg = Config.fromfile(config)
 
             if "dict_file" in input.data["metadata"]:
-                cfg.dictionary.dict_list = input.data["metadata"]['dict_file']
+                cfg.model.decoder.dictionary.dict_file = input.data["metadata"]['dict_file']
 
             cfg.work_dir = str(self.output_folder)
             eval_period = param.cfg["eval_period"]
