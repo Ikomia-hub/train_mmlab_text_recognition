@@ -115,7 +115,7 @@ class TrainMmlabTextRecognitionWidget(core.CWorkflowTaskWidget):
         layout_ptr = qtconversion.PyQtToQt(self.grid_layout)
 
         # Set widget layout
-        self.setLayout(layout_ptr)
+        self.set_layout(layout_ptr)
 
     def on_expert_mode_change(self, int):
         self.label_model.setVisible(self.check_expert.isChecked())
@@ -150,7 +150,7 @@ class TrainMmlabTextRecognitionWidget(core.CWorkflowTaskWidget):
                 else:
                     self.combo_config.setCurrentText(list(self.available_cfg_ckpt.keys())[0])
 
-    def onApply(self):
+    def on_apply(self):
         # Apply button clicked slot
 
         # Get parameters from widget
@@ -168,7 +168,7 @@ class TrainMmlabTextRecognitionWidget(core.CWorkflowTaskWidget):
         self.parameters.cfg["seed"] = self.check_seed.isChecked()
 
         # Send signal to launch the process
-        self.emitApply(self.parameters)
+        self.emit_apply(self.parameters)
 
 
 # --------------------
