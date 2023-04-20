@@ -94,33 +94,35 @@ class TrainMmlabTextRecognitionParam(TaskParam):
     def __init__(self):
         TaskParam.__init__(self)
         self.cfg["model_name"] = "satrn"
+        self.cfg["config"] = ""
         self.cfg["cfg"] = "satrn_shallow-small_5e_st_mj.py"
         self.cfg[
             "weights"] = "https://download.openmmlab.com/mmocr/textrecog/satrn/satrn_shallow-small_5e_st_mj/satrn_shallow-small_5e_st_mj_20220915_152442-5591bf27.pth"
         self.cfg["custom_cfg"] = ""
-        self.cfg["pretrain"] = True
+        self.cfg["use_pretrained"] = True
         self.cfg["epochs"] = 10
         self.cfg["batch_size"] = 32
         self.cfg["dataset_split_ratio"] = 90
         self.cfg["output_folder"] = os.path.dirname(os.path.realpath(__file__)) + "/runs/"
         self.cfg["eval_period"] = 1
         self.cfg["dataset_folder"] = os.path.dirname(os.path.realpath(__file__))
-        self.cfg["expert_mode"] = False
+        self.cfg["use_custom_model"] = False
         self.cfg["seed"] = True
 
     def set_values(self, param_map):
         self.cfg["model_name"] = param_map["model_name"]
+        self.cfg["config"] = param_map["config"]
         self.cfg["cfg"] = param_map["cfg"]
         self.cfg["custom_cfg"] = param_map["custom_cfg"]
         self.cfg["weights"] = param_map["weights"]
-        self.cfg["pretrain"] = utils.strtobool(param_map["pretrain"])
+        self.cfg["use_pretrained"] = utils.strtobool(param_map["use_pretrained"])
         self.cfg["epochs"] = int(param_map["epochs"])
         self.cfg["batch_size"] = int(param_map["batch_size"])
         self.cfg["dataset_split_ratio"] = int(param_map["dataset_split_ratio"])
         self.cfg["output_folder"] = param_map["output_folder"]
         self.cfg["eval_period"] = int(param_map["eval_period"])
         self.cfg["dataset_folder"] = param_map["dataset_folder"]
-        self.cfg["expert_mode"] = utils.strtobool(param_map["expert_mode"])
+        self.cfg["use_custom_model"] = utils.strtobool(param_map["use_custom_model"])
         self.cfg["seed"] = utils.strtobool(param_map["seed"])
 
 
@@ -185,7 +187,12 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
                         param.cfg["seed"])
 
         # Create config from config file and parameters
-        if not param.cfg["expert_mode"]:
+        if param.cfg["config"] != "":
+            if os.path.isfile(param.cfg["config"]):
+                param.cfg["use_custom_config"] = True
+                param.cfg["custom_cfg"] = param.cfg["config"]
+
+        if not param.cfg["use_custom_model"]:
             config = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs", "textrecog",
                                   param.cfg["model_name"], param.cfg["cfg"])
             cfg = Config.fromfile(config)
@@ -226,7 +233,7 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
             cfg.val_dataloader.num_workers = 0
             cfg.val_dataloader.persistent_workers = False
 
-            cfg.load_from = param.cfg["weights"] if param.cfg["pretrain"] else None
+            cfg.load_from = param.cfg["weights"] if param.cfg["use_pretrained"] else None
 
             cfg.train_cfg.max_epochs = param.cfg["epochs"]
             cfg.train_cfg.val_interval = eval_period
