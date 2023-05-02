@@ -18,12 +18,10 @@ model = dict(
     data_preprocessor=dict(
         type='TextRecogDataPreprocessor', mean=[127], std=[127]))
 
-file_client_args = dict(backend='disk')
 train_pipeline = [
     dict(
         type='LoadImageFromFile',
         color_type='grayscale',
-        file_client_args=file_client_args,
         ignore_empty=True,
         min_size=2),
     dict(type='LoadOCRAnnotations', with_text=True),
@@ -34,10 +32,7 @@ train_pipeline = [
 ]
 
 test_pipeline = [
-    dict(
-        type='LoadImageFromFile',
-        color_type='grayscale',
-        file_client_args=file_client_args),
+    dict(type='LoadImageFromFile', color_type='grayscale'),
     dict(
         type='RescaleToHeight',
         height=32,
@@ -50,4 +45,58 @@ test_pipeline = [
     dict(
         type='PackTextRecogInputs',
         meta_keys=('img_path', 'ori_shape', 'img_shape', 'valid_ratio'))
+]
+
+tta_pipeline = [
+    dict(type='LoadImageFromFile', color_type='grayscale'),
+    dict(
+        type='TestTimeAug',
+        transforms=[
+            [
+                dict(
+                    type='ConditionApply',
+                    true_transforms=[
+                        dict(
+                            type='ImgAugWrapper',
+                            args=[dict(cls='Rot90', k=0, keep_size=False)])
+                    ],
+                    condition="results['img_shape'][1]<results['img_shape'][0]"
+                ),
+                dict(
+                    type='ConditionApply',
+                    true_transforms=[
+                        dict(
+                            type='ImgAugWrapper',
+                            args=[dict(cls='Rot90', k=1, keep_size=False)])
+                    ],
+                    condition="results['img_shape'][1]<results['img_shape'][0]"
+                ),
+                dict(
+                    type='ConditionApply',
+                    true_transforms=[
+                        dict(
+                            type='ImgAugWrapper',
+                            args=[dict(cls='Rot90', k=3, keep_size=False)])
+                    ],
+                    condition="results['img_shape'][1]<results['img_shape'][0]"
+                ),
+            ],
+            [
+                dict(
+                    type='RescaleToHeight',
+                    height=32,
+                    min_width=32,
+                    max_width=None,
+                    width_divisor=16)
+            ],
+            # add loading annotation after ``Resize`` because ground truth
+            # does not need to do resize data transform
+            [dict(type='LoadOCRAnnotations', with_text=True)],
+            [
+                dict(
+                    type='PackTextRecogInputs',
+                    meta_keys=('img_path', 'ori_shape', 'img_shape',
+                               'valid_ratio'))
+            ]
+        ])
 ]
