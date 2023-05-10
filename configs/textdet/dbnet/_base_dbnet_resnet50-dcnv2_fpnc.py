@@ -1,5 +1,3 @@
-file_client_args = dict(backend='disk')
-
 model = dict(
     type='DBNet',
     backbone=dict(
@@ -22,17 +20,14 @@ model = dict(
         module_loss=dict(type='DBModuleLoss'),
         postprocessor=dict(type='DBPostprocessor', text_repr_type='quad')),
     data_preprocessor=dict(
-        type='ImgDataPreprocessor',
+        type='TextDetDataPreprocessor',
         mean=[123.675, 116.28, 103.53],
         std=[58.395, 57.12, 57.375],
         bgr_to_rgb=True,
         pad_size_divisor=32))
 
 train_pipeline = [
-    dict(
-        type='LoadImageFromFile',
-        file_client_args=file_client_args,
-        color_type='color_ignore_orientation'),
+    dict(type='LoadImageFromFile', color_type='color_ignore_orientation'),
     dict(
         type='LoadOCRAnnotations',
         with_bbox=True,
@@ -57,10 +52,7 @@ train_pipeline = [
 ]
 
 test_pipeline = [
-    dict(
-        type='LoadImageFromFile',
-        file_client_args=file_client_args,
-        color_type='color_ignore_orientation'),
+    dict(type='LoadImageFromFile', color_type='color_ignore_orientation'),
     dict(type='Resize', scale=(4068, 1024), keep_ratio=True),
     dict(
         type='LoadOCRAnnotations',

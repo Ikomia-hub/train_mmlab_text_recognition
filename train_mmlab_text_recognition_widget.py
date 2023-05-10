@@ -56,7 +56,7 @@ class TrainMmlabTextRecognitionWidget(core.CWorkflowTaskWidget):
 
         # Pretrain
         self.check_pretrain = pyqtutils.append_check(self.grid_layout, "Load mmocr pretrain",
-                                                     self.parameters.cfg["pretrain"])
+                                                     self.parameters.cfg["use_pretrained"])
 
         # Epochs
         self.spin_epochs = pyqtutils.append_spin(self.grid_layout, "Epochs", self.parameters.cfg["epochs"])
@@ -85,7 +85,7 @@ class TrainMmlabTextRecognitionWidget(core.CWorkflowTaskWidget):
                                                                   mode=QFileDialog.Directory)
         # Expert mode
         self.check_expert = pyqtutils.append_check(self.grid_layout, "Expert mode",
-                                                   self.parameters.cfg["expert_mode"])
+                                                   self.parameters.cfg["use_custom_model"])
         self.check_expert.stateChanged.connect(self.on_expert_mode_change)
 
         # Custom Model
@@ -159,11 +159,11 @@ class TrainMmlabTextRecognitionWidget(core.CWorkflowTaskWidget):
         self.parameters.cfg["batch_size"] = self.spin_batch.value()
         self.parameters.cfg["eval_period"] = self.spin_eval_period.value()
         self.parameters.cfg["dataset_split_ratio"] = self.spin_train_test.value()
-        self.parameters.cfg["expert_mode"] = self.check_expert.isChecked()
+        self.parameters.cfg["use_custom_model"] = self.check_expert.isChecked()
         self.parameters.cfg["custom_cfg"] = self.browse_cfg_file.path
         self.parameters.cfg["dataset_folder"] = self.browse_dataset_folder.path
         self.parameters.cfg["output_folder"] = self.browse_out_folder.path
-        self.parameters.cfg["pretrain"] = self.check_pretrain.isChecked()
+        self.parameters.cfg["use_pretrained"] = self.check_pretrain.isChecked()
         self.parameters.cfg["cfg"] = self.combo_config.currentText()+".py"
         self.parameters.cfg["seed"] = self.check_seed.isChecked()
 
