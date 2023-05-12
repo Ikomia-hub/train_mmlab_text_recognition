@@ -27,9 +27,8 @@ def test(t, data_dict):
                 cfg = os.path.basename(model_dict["Config"])
                 ckpt = model_dict["Weights"]
                 params["cfg"] = cfg
-                params["weights"] = ckpt
+                params["model_weight_file"] = ckpt
                 params["model_name"] = directory
-                params["pretrain"] = True
                 params["epochs"] = 2
                 params["batch_size"] = 1
                 params["eval_period"] = 1
