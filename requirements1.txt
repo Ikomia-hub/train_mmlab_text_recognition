@@ -10,4 +10,5 @@ mmdet==3.0.0; python_version < "3.10"
 mmengine==0.7.1; python_version < "3.10"
 mmocr==1.0.0; python_version < "3.10"
 
-pillow<=8.1.0
+albumentations>=1.1.0, <2
+pillow<10.0.0
