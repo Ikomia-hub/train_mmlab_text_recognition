@@ -21,8 +21,6 @@
 
 Training process for MMOCR from MMLAB in text recognition.You can choose a predefined model configuration from MMLAB's model zoo or use custom models and custom pretrained model_weight_file by ticking Expert mode button.
 
-[Insert illustrative image here. Image must be accessible publicly, in algorithm Github repository for example.
-<img src="images/illustration.png"  alt="Illustrative image" width="30%" height="30%">]
 
 ## :rocket: Use with Ikomia API
 
@@ -36,21 +34,33 @@ pip install ikomia
 
 #### 2. Create your workflow
 
-[Change the sample image URL to fit algorithm purpose]
+To try this code snippet, you can download and extract from [wildreceipt](https://download.openmmlab.com/mmocr/data/wildreceipt.tar).
+Then make sure you fill the parameter **dataset_folder** correctly.
 
 ```python
-import ikomia
 from ikomia.dataprocess.workflow import Workflow
 
 # Init your workflow
 wf = Workflow()
 
+# Add dataset
+dataset = wf.add_task(name="dataset_wildreceipt", auto_connect=False)
+
+# Set dataset parameters
+dataset.set_parameters({'dataset_folder': 'dataset/folder'})
+
 # Add algorithm
 algo = wf.add_task(name="train_mmlab_text_recognition", auto_connect=True)
 
-# Run on your image  
-wf.run_on(url="example_image.png")
+# Run training
+wf.run()
 ```
+
+## :pencil: Set algorithm parameters
+
+- **dataset_folder** (str, default=""): path to the dataset folder.
+
+*Note*: parameter key and value should be in **string format** when added to the dictionary.
 
 ## :sunny: Use with Ikomia Studio
 
@@ -60,58 +70,26 @@ Ikomia Studio offers a friendly UI with the same features as the API.
 
 - For additional guidance on getting started with Ikomia Studio, check out [this blog post](https://www.ikomia.ai/blog/how-to-get-started-with-ikomia-studio).
 
-## :pencil: Set algorithm parameters
-
-[Explain each algorithm parameters]
-
-[Change the sample image URL to fit algorithm purpose]
-
-```python
-import ikomia
-from ikomia.dataprocess.workflow import Workflow
-
-# Init your workflow
-wf = Workflow()
-
-# Add algorithm
-algo = wf.add_task(name="train_mmlab_text_recognition", auto_connect=True)
-
-algo.set_parameters({
-    "param1": "value1",
-    "param2": "value2",
-    ...
-})
-
-# Run on your image  
-wf.run_on(url="example_image.png")
-
-```
 
 ## :mag: Explore algorithm outputs
 
 Every algorithm produces specific outputs, yet they can be explored them the same way using the Ikomia API. For a more in-depth understanding of managing algorithm outputs, please refer to the [documentation](https://ikomia-dev.github.io/python-api-documentation/advanced_guide/IO_management.html).
 
 ```python
-import ikomia
 from ikomia.dataprocess.workflow import Workflow
 
 # Init your workflow
 wf = Workflow()
 
 # Add algorithm
-algo = wf.add_task(name="train_mmlab_text_recognition", auto_connect=True)
+dataset = wf.add_task(name="train_mmlab_text_recognition", auto_connect=False)
 
-# Run on your image  
-wf.run_on(url="example_image.png")
+# Set dataset parameters
+dataset.set_parameters({'dataset_folder': 'dataset/folder'})
 
-# Iterate over outputs
-for output in algo.get_outputs()
-    # Print information
-    print(output)
-    # Export it to JSON
-    output.to_json()
+# Load dataset
+wf.run()
+
+# Look at the loaded data
+print(dataset.get_output(0).data)
 ```
-
-## :fast_forward: Advanced usage 
-
-[optional]
