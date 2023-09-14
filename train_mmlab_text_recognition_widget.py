@@ -133,18 +133,15 @@ class TrainMmlabTextRecognitionWidget(core.CWorkflowTaskWidget):
                 with open(yaml_file, "r") as f:
                     models_list = yaml.load(f, Loader=yaml.FullLoader)['Models']
 
-                self.available_cfg_ckpt = {model_dict["Name"]: {'cfg': model_dict["Config"],
-                                                                'ckpt': model_dict["Weights"]}
-                                           for
-                                           model_dict in models_list}
-                for experiment_name in self.available_cfg_ckpt.keys():
+                available_cfg_ckpt = [os.path.basename(model_dict["Config"]) for model_dict in models_list]
+                for experiment_name in available_cfg_ckpt:
                     self.combo_config.addItem(experiment_name)
                     config_names.append(experiment_name)
                 selected_cfg = self.parameters.cfg["cfg"].replace(".py", "")
                 if selected_cfg in config_names:
                     self.combo_config.setCurrentText(selected_cfg)
                 else:
-                    self.combo_config.setCurrentText(list(self.available_cfg_ckpt.keys())[0])
+                    self.combo_config.setCurrentText(available_cfg_ckpt[0])
 
     def on_apply(self):
         # Apply button clicked slot
@@ -159,7 +156,7 @@ class TrainMmlabTextRecognitionWidget(core.CWorkflowTaskWidget):
         self.parameters.cfg["config_file"] = self.browse_cfg_file.path
         self.parameters.cfg["dataset_folder"] = self.browse_dataset_folder.path
         self.parameters.cfg["output_folder"] = self.browse_out_folder.path
-        self.parameters.cfg["cfg"] = self.combo_config.currentText()+".py"
+        self.parameters.cfg["cfg"] = self.combo_config.currentText()
         self.parameters.cfg["seed"] = self.check_seed.isChecked()
 
         # Send signal to launch the process
