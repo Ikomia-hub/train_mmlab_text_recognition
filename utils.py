@@ -97,7 +97,7 @@ def prepare_dataset(ikdata, save_dir, split_ratio, seed):
 
     word_id = 1
     for img_id, sample in enumerate(images):
-        img = cv2.imread(sample['filename'])
+        img = cv2.imread(sample['filename'], cv2.IMREAD_UNCHANGED)
         for annot in sample["annotations"]:
             if 'bbox' in annot:
                 x, y, w, h = annot['bbox']
