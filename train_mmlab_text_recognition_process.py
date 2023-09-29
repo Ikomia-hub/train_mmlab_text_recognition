@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from ikomia import utils, dataprocess
+from ikomia import utils, core, dataprocess
 from ikomia.core.task import TaskParam
 import os
 from ikomia.dnn import dnntrain
@@ -385,6 +385,8 @@ class TrainMmlabTextRecognitionFactory(dataprocess.CTaskFactory):
         self.info.original_repository = "https://github.com/open-mmlab/mmocr"
         # Keywords used for search
         self.info.keywords = "train, mmlab, mmocr, ocr, text, recognition, pytorch, satrn, seg"
+        self.info.algo_type = core.AlgoType.TRAIN
+        self.info.algo_tasks = "OCR"
 
     def create(self, param=None):
         # Create process object
