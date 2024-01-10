@@ -97,7 +97,7 @@ class TrainMmlabTextRecognitionParam(TaskParam):
         self.cfg["model_name"] = "satrn"
         self.cfg["cfg"] = "satrn_shallow-small_5e_st_mj.py"
         self.cfg[
-            "model_weight_file"] = "https://download.openmmlab.com/mmocr/textrecog/satrn/satrn_shallow-small_5e_st_mj/satrn_shallow-small_5e_st_mj_20220915_152442-5591bf27.pth"
+            "model_weight_file"] = ""
         self.cfg["config_file"] = ""
         self.cfg["epochs"] = 10
         self.cfg["batch_size"] = 32
@@ -370,7 +370,7 @@ class TrainMmlabTextRecognitionFactory(dataprocess.CTaskFactory):
         self.info.short_description = "Training process for MMOCR from MMLAB in text recognition"
         # relative path -> as displayed in Ikomia application process tree
         self.info.path = "Plugins/Python/Text"
-        self.info.version = "1.1.1"
+        self.info.version = "1.1.2"
         self.info.icon_path = "icons/mmlab.png"
         self.info.authors = "Kuang, Zhanghui and Sun, Hongbin and Li, Zhizhong and Yue, Xiaoyu and Lin," \
                             " Tsui Hin and Chen, Jianyong and Wei, Huaqiang and Zhu, Yiqin and Gao, Tong and Zhang," \
