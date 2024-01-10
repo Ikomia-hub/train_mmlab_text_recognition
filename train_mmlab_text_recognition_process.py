@@ -174,7 +174,8 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
         return available_pairs
 
     @staticmethod
-    def get_cfg_and_weights_from_name(model_name, model_config):
+    def get_cfg_and_weights_from_name(param):
+        model_name, model_config, ckpt = param.cfg["model_name"], param.cfg["cfg"], param.cfg["model_weight_file"]
         yaml_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs", "textrecog", model_name,
                                  "metafile.yml")
 
@@ -189,7 +190,7 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
                                   for model_dict in models_list}
             if model_config in available_cfg_ckpt:
                 cfg_file = available_cfg_ckpt[model_config]['cfg']
-                ckpt_file = available_cfg_ckpt[model_config]['ckpt']
+                ckpt_file = available_cfg_ckpt[model_config]['ckpt'] if ckpt == "" else ckpt
                 cfg_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), cfg_file)
             else:
                 raise Exception(
@@ -235,7 +236,7 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
                 cfg.load_from = param.cfg["model_weight_file"]
 
             else:
-                config, ckpt = self.get_cfg_and_weights_from_name(param.cfg["model_name"], param.cfg["cfg"])
+                config, ckpt = self.get_cfg_and_weights_from_name(param)
                 cfg = Config.fromfile(config)
                 cfg.load_from = ckpt
 

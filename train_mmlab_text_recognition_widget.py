@@ -79,6 +79,12 @@ class TrainMmlabTextRecognitionWidget(core.CWorkflowTaskWidget):
                                                                   path=self.parameters.cfg["dataset_folder"],
                                                                   tooltip="Select folder",
                                                                   mode=QFileDialog.Directory)
+
+        # Pretrained model weight
+        self.browse_model_weight_file = pyqtutils.append_browse_file(self.grid_layout, label="Pretrained model weights",
+                                                                     path=self.parameters.cfg["model_weight_file"],
+                                                                     tooltip="Select file",
+                                                                     mode=QFileDialog.ExistingFile)
         # Expert mode
         self.check_expert = pyqtutils.append_check(self.grid_layout, "Expert mode",
                                                    self.parameters.cfg["use_expert_mode"])
@@ -154,6 +160,7 @@ class TrainMmlabTextRecognitionWidget(core.CWorkflowTaskWidget):
         self.parameters.cfg["dataset_split_ratio"] = self.spin_train_test.value()
         self.parameters.cfg["use_expert_mode"] = self.check_expert.isChecked()
         self.parameters.cfg["config_file"] = self.browse_cfg_file.path
+        self.parameters.cfg["model_weight_file"] = self.browse_model_weight_file.path
         self.parameters.cfg["dataset_folder"] = self.browse_dataset_folder.path
         self.parameters.cfg["output_folder"] = self.browse_out_folder.path
         self.parameters.cfg["cfg"] = self.combo_config.currentText()
