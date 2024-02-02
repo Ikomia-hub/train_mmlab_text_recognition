@@ -370,7 +370,8 @@ class TrainMmlabTextRecognitionFactory(dataprocess.CTaskFactory):
         self.info.short_description = "Training process for MMOCR from MMLAB in text recognition"
         # relative path -> as displayed in Ikomia application process tree
         self.info.path = "Plugins/Python/Text"
-        self.info.version = "1.1.2"
+        self.info.version = "1.1.3"
+        self.info.max_python_version = "3.10.0"
         self.info.icon_path = "icons/mmlab.png"
         self.info.authors = "Kuang, Zhanghui and Sun, Hongbin and Li, Zhizhong and Yue, Xiaoyu and Lin," \
                             " Tsui Hin and Chen, Jianyong and Wei, Huaqiang and Zhu, Yiqin and Gao, Tong and Zhang," \
