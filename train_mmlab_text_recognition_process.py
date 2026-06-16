@@ -102,9 +102,11 @@ class TrainMmlabTextRecognitionParam(TaskParam):
         self.cfg["epochs"] = 10
         self.cfg["batch_size"] = 32
         self.cfg["dataset_split_ratio"] = 90
-        self.cfg["output_folder"] = os.path.dirname(os.path.realpath(__file__)) + "/runs/"
+        self.cfg["output_folder"] = os.path.dirname(
+            os.path.realpath(__file__)) + "/runs/"
         self.cfg["eval_period"] = 1
-        self.cfg["dataset_folder"] = os.path.dirname(os.path.realpath(__file__))
+        self.cfg["dataset_folder"] = os.path.dirname(
+            os.path.realpath(__file__))
         self.cfg["use_expert_mode"] = False
         self.cfg["seed"] = True
 
@@ -119,7 +121,8 @@ class TrainMmlabTextRecognitionParam(TaskParam):
         self.cfg["output_folder"] = param_map["output_folder"]
         self.cfg["eval_period"] = int(param_map["eval_period"])
         self.cfg["dataset_folder"] = param_map["dataset_folder"]
-        self.cfg["use_expert_mode"] = utils.strtobool(param_map["use_expert_mode"])
+        self.cfg["use_expert_mode"] = utils.strtobool(
+            param_map["use_expert_mode"])
         self.cfg["seed"] = utils.strtobool(param_map["seed"])
 
 
@@ -156,12 +159,14 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
 
     @staticmethod
     def get_model_zoo():
-        configs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs", "textrecog")
+        configs_folder = os.path.join(os.path.dirname(
+            os.path.abspath(__file__)), "configs", "textrecog")
         available_pairs = []
         for model_name in os.listdir(configs_folder):
             if model_name.startswith('_'):
                 continue
-            yaml_file = os.path.join(configs_folder, model_name, "metafile.yml")
+            yaml_file = os.path.join(
+                configs_folder, model_name, "metafile.yml")
             if os.path.isfile(yaml_file):
                 with open(yaml_file, "r") as f:
                     models_list = yaml.load(f, Loader=yaml.FullLoader)
@@ -170,7 +175,8 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
                     if not isinstance(models_list, list):
                         continue
                 for model_dict in models_list:
-                    available_pairs.append({"model_name": model_name, "cfg": os.path.basename(model_dict["Name"])})
+                    available_pairs.append(
+                        {"model_name": model_name, "cfg": os.path.basename(model_dict["Name"])})
         return available_pairs
 
     @staticmethod
@@ -191,7 +197,8 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
             if model_config in available_cfg_ckpt:
                 cfg_file = available_cfg_ckpt[model_config]['cfg']
                 ckpt_file = available_cfg_ckpt[model_config]['ckpt'] if ckpt == "" else ckpt
-                cfg_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), cfg_file)
+                cfg_file = os.path.join(os.path.dirname(
+                    os.path.abspath(__file__)), cfg_file)
             else:
                 raise Exception(
                     f"{model_config} does not exist for {model_name}. Available configs for are {', '.join(list(available_cfg_ckpt.keys()))}")
@@ -218,11 +225,13 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
             return
 
         # Output directory
-        self.output_folder = os.path.join(param.cfg["output_folder"], str_datetime)
+        self.output_folder = os.path.join(
+            param.cfg["output_folder"], str_datetime)
         os.makedirs(self.output_folder, exist_ok=True)
 
         # Tensorboard
-        tb_logdir = os.path.join(ikcfg.main_cfg["tensorboard"]["log_uri"], str_datetime)
+        tb_logdir = os.path.join(
+            ikcfg.main_cfg["tensorboard"]["log_uri"], str_datetime)
 
         # Transform Ikomia dataset to ICDAR compatible dataset if needed
         prepare_dataset(input.data, param.cfg["dataset_folder"], param.cfg["dataset_split_ratio"] / 100,
@@ -293,7 +302,8 @@ class TrainMmlabTextRecognition(dnntrain.TrainProcess):
             cfg.default_hooks.checkpoint["save_best"] = 'recog/word_acc'
             cfg.default_hooks.checkpoint["rule"] = 'greater'
 
-        cfg.visualizer.vis_backends = [dict(type='TensorboardVisBackend', save_dir=tb_logdir)]
+        cfg.visualizer.vis_backends = [
+            dict(type='TensorboardVisBackend', save_dir=tb_logdir)]
 
         try:
             visualizer = Visualizer.get_current_instance()
@@ -370,8 +380,9 @@ class TrainMmlabTextRecognitionFactory(dataprocess.CTaskFactory):
         self.info.short_description = "Training process for MMOCR from MMLAB in text recognition"
         # relative path -> as displayed in Ikomia application process tree
         self.info.path = "Plugins/Python/Text"
-        self.info.version = "1.1.3"
-        self.info.max_python_version = "3.10.0"
+        self.info.version = "2.0.0"
+        self.info.min_python_version = "3.10.0"
+        self.info.min_ikomia_version = "0.16.0"
         self.info.icon_path = "icons/mmlab.png"
         self.info.authors = "Kuang, Zhanghui and Sun, Hongbin and Li, Zhizhong and Yue, Xiaoyu and Lin," \
                             " Tsui Hin and Chen, Jianyong and Wei, Huaqiang and Zhu, Yiqin and Gao, Tong and Zhang," \
@@ -384,7 +395,7 @@ class TrainMmlabTextRecognitionFactory(dataprocess.CTaskFactory):
         self.info.documentation_link = "https://mmocr.readthedocs.io/en/latest/"
         # Code source repository
         self.info.repository = "https://github.com/Ikomia-hub/train_mmlab_text_recognition"
-        self.info.original_repository = "https://github.com/open-mmlab/mmocr"
+        self.info.original_repository = "https://github.com/Ikomia-dev/mmocr"
         # Keywords used for search
         self.info.keywords = "train, mmlab, mmocr, ocr, text, recognition, pytorch, satrn, seg"
         self.info.algo_type = core.AlgoType.TRAIN
